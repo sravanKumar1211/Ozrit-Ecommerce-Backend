@@ -13,6 +13,7 @@ import ProductVariantRoutes from "./routes/InventoyRoutes/productVariantRoutes.j
 import CartRoutes from "./routes/cartRoutes.js";
 import CouponRoutes from "./routes/couponRoutes.js";
 import OrderRoutes from "./routes/orderRoutes.js";
+import PaymentRoutes from "./routes/paymentRoutes.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
 
 dotenv.config();
@@ -21,7 +22,11 @@ const app = express();
 // Middleware
 app.use(cors());
 app.use(cookieParser());
-app.use(express.json());
+app.use(express.json({
+  verify: (req, res, buf) => {
+    req.rawBody = buf;
+  },
+}));
 app.use(express.urlencoded({ extended: true }));
 
 // Serve static files from uploads directory
@@ -44,6 +49,7 @@ app.use("/api/productVariant", ProductVariantRoutes);
 app.use("/api/cart", CartRoutes);
 app.use("/api/coupons", CouponRoutes);
 app.use("/api", OrderRoutes);
+app.use("/api/payment", PaymentRoutes);
 
 // Central error handler
 app.use(errorHandler);
@@ -54,7 +60,7 @@ const startServer = async () => {
     await sequelize.authenticate();
     console.log("Database connected successfully");
 
-    // Sync models during development; keep production defaults stable
+   // Sync models during development; keep production defaults stable
     // await sequelize.sync({
     //   alter: process.env.NODE_ENV !== "production",
     // });
