@@ -3,6 +3,7 @@ import { auth, adminAuth } from "../middlewares/auth.js";
 import { validate } from "../middlewares/validate.js";
 import {
   createOrder,
+  cancelMyOrder,
   getMyOrders,
   getMyOrderById,
   getOrderHistory,
@@ -17,6 +18,7 @@ const router = express.Router();
 
 // User order APIs
 router.post("/order", auth, validate(createOrderSchema), createOrder);
+router.put("/order/cancel/:id", auth, cancelMyOrder);
 router.get("/my-orders", auth, getMyOrders);
 router.get("/my-orders/:id", auth, getMyOrderById);
 router.get("/order-history", auth, getOrderHistory);

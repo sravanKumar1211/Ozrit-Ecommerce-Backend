@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import sendEmail from "../utils/sendEmail.js";
 import Cart from "../models/Cart/cartModel.js";
+import { buildImagePath, buildImageUrl } from "../utils/fileUtils.js";
 
 // Generate JWT
 const generateToken = (user) => {
@@ -60,6 +61,7 @@ export const registerUser = async (req, res, next) => {
         email: user.email,
         phone: user.phone,
         role: user.role,
+        profileImage: buildImageUrl(user.profileImage),
       },
     });
   } catch (error) {
@@ -102,7 +104,9 @@ export const loginUser = async (req, res, next) => {
         id: user.id,
         name: user.name,
         email: user.email,
+        phone: user.phone,
         role: user.role,
+        profileImage: buildImageUrl(user.profileImage),
       },
     });
   } catch (error) {
@@ -138,9 +142,12 @@ export const getProfile = async (req, res) => {
       });
     }
 
+    const payload = user.toJSON();
+    payload.profileImage = buildImageUrl(payload.profileImage);
+
     res.status(200).json({
       success: true,
-      user,
+      user: payload,
     });
   } catch (error) {
     let errorMessage = error.message;
@@ -156,6 +163,7 @@ export const getProfile = async (req, res) => {
 };
 
 // Update profile
+
 export const updateProfile = async (req, res) => {
   try {
     const { name, phone, address, profileImage } = req.body;
@@ -169,39 +177,69 @@ export const updateProfile = async (req, res) => {
       });
     }
 
+    let parsedAddress = address;
+
+    if (typeof address === "string") {
+      try {
+        parsedAddress = JSON.parse(address);
+      } catch (err) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid address format",
+        });
+      }
+    }
+
     user.name = name || user.name;
-
     user.phone = phone || user.phone;
+    user.profileImage =
+      buildImagePath(req.file) ||
+      profileImage ||
+      user.profileImage;
 
-    user.profileImage = profileImage || user.profileImage;
-
-    user.address = address || user.address;
+    user.address = parsedAddress || user.address;
 
     await user.save();
 
     res.status(200).json({
       success: true,
       message: "Profile updated successfully",
-
       user: {
         id: user.id,
         name: user.name,
         email: user.email,
         phone: user.phone,
+        role: user.role,
         address: user.address,
-        profileImage: user.profileImage,
+        profileImage: buildImageUrl(user.profileImage),
       },
     });
   } catch (error) {
-    let errorMessage = error.message;
-    if (error.errors && Array.isArray(error.errors)) {
-      errorMessage = error.errors.map((e) => e.message).join(", ");
-    }
-    res.status(500).json({
-      success: false,
-      message: "Failed to update profile",
-      error: errorMessage,
+  console.log("FULL ERROR");
+  console.dir(error, { depth: null });
+
+  return res.status(500).json({
+    success: false,
+    message: error.message,
+    details: error.errors || null,
+  });
+}
+}
+  
+
+export const getAllUsers = async (req, res, next) => {
+  try {
+    const users = await User.findAll({
+      attributes: { exclude: ["password"] },
+      order: [["createdAt", "DESC"]],
     });
+
+    res.status(200).json({
+      success: true,
+      users,
+    });
+  } catch (error) {
+    next(error);
   }
 };
 
@@ -209,7 +247,7 @@ export const updateProfile = async (req, res) => {
 
 export const resetPassword = async (req, res) => {
   try {
-    const { newPassword, confirmPassword } = req.body;
+    const { oldPassword, newPassword, confirmPassword } = req.body;
 
     if (newPassword !== confirmPassword) {
       return res.status(400).json({
@@ -231,6 +269,15 @@ export const resetPassword = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "User not found",
+      });
+    }
+
+    const isMatch = await user.comparePassword(oldPassword || "");
+
+    if (!isMatch) {
+      return res.status(400).json({
+        success: false,
+        message: "Old password is incorrect",
       });
     }
 

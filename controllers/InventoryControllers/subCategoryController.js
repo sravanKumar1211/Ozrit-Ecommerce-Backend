@@ -1,22 +1,43 @@
-import { Op } from "sequelize";
 import SubCategory from "../../models/InventoryModels/subCategoryModel.js";
+import Category from "../../models/InventoryModels/categoryModel.js";
 import { buildImagePath, buildImageUrl } from "../../utils/fileUtils.js";
 import { getPagination, buildSearchFilter } from "../../utils/pagination.js";
+
+const parseStatus = (status, fallback = true) => {
+  if (status === undefined || status === null || status === "") return fallback;
+  if (typeof status === "boolean") return status;
+  return status === "true" || status === "1";
+};
 
 export const createSubCategory = async (req, res, next) => {
   try {
     const { name, categoryId, status } = req.body;
     const image = buildImagePath(req.file);
 
+    const category = await Category.findOne({
+      where: {
+        id: categoryId,
+        status: true,
+      },
+    });
+
+    if (!category) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid category is required",
+      });
+    }
+
     const subCategory = await SubCategory.create({
       name,
       categoryId,
-      status,
+      status: parseStatus(status),
       image,
     });
 
     const payload = subCategory.toJSON();
     payload.image = buildImageUrl(payload.image);
+    payload.Category = category.toJSON();
 
     res.status(201).json({
       success: true,
@@ -38,6 +59,12 @@ export const getSubCategories = async (req, res, next) => {
 
     const { rows: subCategories, count } = await SubCategory.findAndCountAll({
       where,
+      include: [
+        {
+          model: Category,
+          attributes: ["id", "name", "image", "status"],
+        },
+      ],
       limit,
       offset,
       order: [["createdAt", "DESC"]],
@@ -69,6 +96,12 @@ export const getSingleSubCategory = async (req, res, next) => {
         id: req.params.id,
         status: true,
       },
+      include: [
+        {
+          model: Category,
+          attributes: ["id", "name", "image", "status"],
+        },
+      ],
     });
 
     if (!subCategory) {
@@ -102,9 +135,26 @@ export const updateSubCategory = async (req, res, next) => {
     }
 
     const { name, categoryId, status } = req.body;
+
+    if (categoryId) {
+      const category = await Category.findOne({
+        where: {
+          id: categoryId,
+          status: true,
+        },
+      });
+
+      if (!category) {
+        return res.status(400).json({
+          success: false,
+          message: "Valid category is required",
+        });
+      }
+    }
+
     subCategory.name = name || subCategory.name;
     subCategory.categoryId = categoryId || subCategory.categoryId;
-    subCategory.status = status ?? subCategory.status;
+    subCategory.status = parseStatus(status, subCategory.status);
 
     if (req.file) {
       subCategory.image = buildImagePath(req.file);
@@ -112,7 +162,16 @@ export const updateSubCategory = async (req, res, next) => {
 
     await subCategory.save();
 
-    const payload = subCategory.toJSON();
+    const refreshed = await SubCategory.findByPk(subCategory.id, {
+      include: [
+        {
+          model: Category,
+          attributes: ["id", "name", "image", "status"],
+        },
+      ],
+    });
+
+    const payload = refreshed.toJSON();
     payload.image = buildImageUrl(payload.image);
 
     res.status(200).json({

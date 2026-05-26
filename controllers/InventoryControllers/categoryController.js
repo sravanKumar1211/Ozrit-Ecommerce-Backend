@@ -1,7 +1,12 @@
-import { Op } from "sequelize";
 import Category from "../../models/InventoryModels/categoryModel.js";
 import { buildImagePath, buildImageUrl } from "../../utils/fileUtils.js";
 import { getPagination, buildSearchFilter } from "../../utils/pagination.js";
+
+const parseStatus = (status, fallback = true) => {
+  if (status === undefined || status === null || status === "") return fallback;
+  if (typeof status === "boolean") return status;
+  return status === "true" || status === "1";
+};
 
 // CREATE
 export const createCategory = async (req, res, next) => {
@@ -11,7 +16,7 @@ export const createCategory = async (req, res, next) => {
 
     const category = await Category.create({
       name,
-      status,
+      status: parseStatus(status),
       image,
     });
 
@@ -105,7 +110,7 @@ export const updateCategory = async (req, res, next) => {
 
     const { name, status } = req.body;
     category.name = name || category.name;
-    category.status = status ?? category.status;
+    category.status = parseStatus(status, category.status);
 
     if (req.file) {
       category.image = buildImagePath(req.file);

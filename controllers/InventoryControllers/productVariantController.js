@@ -39,6 +39,7 @@ export const getVariants = async (req, res, next) => {
     const { page, limit, offset, search } = getPagination(req);
     const where = {
       status: true,
+      ...(req.query.productId ? { productId: req.query.productId } : {}),
       ...(search ? buildSearchFilter(search, ["sku", "color", "size"]) : {}),
     };
 

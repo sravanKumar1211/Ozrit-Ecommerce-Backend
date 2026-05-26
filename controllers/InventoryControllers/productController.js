@@ -1,4 +1,5 @@
 import { Op } from "sequelize";
+import sequelize from "../../config/db.js";
 import Product from "../../models/InventoryModels/productModel.js";
 import Category from "../../models/InventoryModels/categoryModel.js";
 import SubCategory from "../../models/InventoryModels/subCategoryModel.js";
@@ -38,20 +39,62 @@ export const createProduct = async (req, res, next) => {
 export const getProducts = async (req, res, next) => {
   try {
     const { page, limit, offset, search } = getPagination(req);
+    const categoryId = req.query.categoryId ? Number(req.query.categoryId) : null;
+    const subCategoryId = req.query.subCategoryId ? Number(req.query.subCategoryId) : null;
+    const brandId = req.query.brandId ? Number(req.query.brandId) : null;
+    const minPrice = req.query.minPrice ? parseFloat(req.query.minPrice) : null;
+    const maxPrice = req.query.maxPrice ? parseFloat(req.query.maxPrice) : null;
+    const sort = req.query.sort || "latest";
+
     const where = {
       status: true,
       ...(search ? buildSearchFilter(search, ["name"]) : {}),
+      ...(categoryId ? { categoryId } : {}),
+      ...(subCategoryId ? { subCategoryId } : {}),
+      ...(brandId ? { brandId } : {}),
     };
 
-    const { rows: products, count } = await Product.findAndCountAll({
+    const minPriceLiteral = sequelize.literal(
+      `(SELECT MIN(price) FROM product_variants WHERE product_id = Product.id AND status = true)`,
+    );
+
+    let order = [["createdAt", "DESC"]];
+    if (sort === "priceAsc") {
+      order = [[minPriceLiteral, "ASC"]];
+    } else if (sort === "priceDesc") {
+      order = [[minPriceLiteral, "DESC"]];
+    } else if (sort === "latest") {
+      order = [["createdAt", "DESC"]];
+    }
+
+    const { rows: products, count: totalCount } = await Product.findAndCountAll({
       where,
-      include: [Category, SubCategory, Brand],
+      include: [Category, SubCategory, Brand, "ProductVariants"],
       limit,
       offset,
-      order: [["createdAt", "DESC"]],
+      order,
+      subQuery: false,
     });
 
-    const results = products.map((product) => {
+    // Apply price filtering if specified
+    let filteredProducts = products;
+    if (minPrice !== null || maxPrice !== null) {
+      filteredProducts = products.filter((product) => {
+        // Get all variant prices for this product
+        const variantPrices = product.ProductVariants?.map(v => parseFloat(v.price)) || [];
+        if (variantPrices.length === 0) return false;
+        
+        const minVariantPrice = Math.min(...variantPrices);
+        const maxVariantPrice = Math.max(...variantPrices);
+        
+        // Check if price range overlaps with filter
+        if (minPrice !== null && maxVariantPrice < minPrice) return false;
+        if (maxPrice !== null && minVariantPrice > maxPrice) return false;
+        return true;
+      });
+    }
+
+    const results = filteredProducts.map((product) => {
       const payload = product.toJSON();
       payload.thumbnail = buildImageUrl(payload.thumbnail);
       return payload;
@@ -61,7 +104,7 @@ export const getProducts = async (req, res, next) => {
       success: true,
       page,
       limit,
-      total: count,
+      total: filteredProducts.length,
       products: results,
     });
   } catch (error) {

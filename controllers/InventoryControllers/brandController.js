@@ -1,7 +1,12 @@
-import { Op } from "sequelize";
 import Brand from "../../models/InventoryModels/brandModel.js";
 import { buildImagePath, buildImageUrl } from "../../utils/fileUtils.js";
 import { getPagination, buildSearchFilter } from "../../utils/pagination.js";
+
+const parseStatus = (status, fallback = true) => {
+  if (status === undefined || status === null || status === "") return fallback;
+  if (typeof status === "boolean") return status;
+  return status === "true" || status === "1";
+};
 
 export const createBrand = async (req, res, next) => {
   try {
@@ -10,7 +15,7 @@ export const createBrand = async (req, res, next) => {
 
     const brand = await Brand.create({
       name,
-      status,
+      status: parseStatus(status),
       logo,
     });
 
@@ -102,7 +107,7 @@ export const updateBrand = async (req, res, next) => {
 
     const { name, status } = req.body;
     brand.name = name || brand.name;
-    brand.status = status ?? brand.status;
+    brand.status = parseStatus(status, brand.status);
 
     if (req.file) {
       brand.logo = buildImagePath(req.file);

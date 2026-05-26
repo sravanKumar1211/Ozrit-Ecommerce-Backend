@@ -20,7 +20,31 @@ dotenv.config();
 const app = express();
 
 // Middleware
-app.use(cors());
+const allowedOrigins = [
+  "http://localhost:5174",
+  "http://localhost:5173", // Default for Vite + React
+  process.env.FRONTEND_URL // Your production React app URL (add this to your .env)
+].filter(Boolean); // Removes undefined values if FRONTEND_URL isn't set yet
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, curl, or Postman)
+      if (!origin) return callback(null, true);
+      
+      if (allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true, // Crucial for sending cookies/sessions back and forth
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+
+
 app.use(cookieParser());
 app.use(express.json({
   verify: (req, res, buf) => {
@@ -60,7 +84,7 @@ const startServer = async () => {
     await sequelize.authenticate();
     console.log("Database connected successfully");
 
-   // Sync models during development; keep production defaults stable
+   //Sync models during development; keep production defaults stable
     // await sequelize.sync({
     //   alter: process.env.NODE_ENV !== "production",
     // });

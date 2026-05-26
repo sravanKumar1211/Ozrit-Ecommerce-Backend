@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Razorpay Test Checkout</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 520px;
+      margin: 40px auto;
+      padding: 0 16px;
+      color: #1f2937;
+    }
+
+    label {
+      display: block;
+      margin-top: 16px;
+      font-weight: 600;
+    }
+
+    input {
+      width: 100%;
+      box-sizing: border-box;
+      margin-top: 6px;
+      padding: 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    button {
+      margin-top: 20px;
+      padding: 11px 16px;
+      border: 0;
+      border-radius: 6px;
+      background: #2563eb;
+      color: white;
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    pre {
+      margin-top: 20px;
+      padding: 12px;
+      background: #f1f5f9;
+      border-radius: 6px;
+      overflow: auto;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Razorpay Test Checkout</h2>
+
+  <label for="keyId">Razorpay Key ID</label>
+  <input id="keyId" placeholder="rzp_test_xxxxxxxxxx">
+
+  <label for="razorpayOrderId">Razorpay Order ID</label>
+  <input id="razorpayOrderId" placeholder="order_xxxxxxxxxx">
+
+  <label for="amount">Amount in paise</label>
+  <input id="amount" type="number" placeholder="50000">
+
+  <button id="payBtn">Pay Now</button>
+
+  <pre id="result">Payment response will appear here.</pre>
+
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <script>
+    document.getElementById("payBtn").addEventListener("click", function () {
+      const keyId = document.getElementById("keyId").value.trim();
+      const razorpayOrderId = document.getElementById("razorpayOrderId").value.trim();
+      const amount = Number(document.getElementById("amount").value);
+      const result = document.getElementById("result");
+
+      if (!keyId || !razorpayOrderId || !amount) {
+        result.textContent = "Enter Key ID, Razorpay Order ID, and amount.";
+        return;
+      }
+
+      const options = {
+        key: keyId,
+        amount: amount,
+        currency: "INR",
+        name: "Ecommerce Test",
+        description: "Test Payment",
+        order_id: razorpayOrderId,
+        handler: function (response) {
+          result.textContent = JSON.stringify(response, null, 2);
+          alert("Payment completed. Check webhook/order status in backend.");
+        },
+        prefill: {
+          name: "Test User",
+          email: "test@example.com",
+          contact: "9999999999"
+        },
+        theme: {
+          color: "#2563eb"
+        }
+      };
+
+      const razorpay = new Razorpay(options);
+      razorpay.open();
+    });
+  </script>
+</body>
+</html>

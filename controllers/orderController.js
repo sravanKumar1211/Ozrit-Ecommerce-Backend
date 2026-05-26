@@ -15,7 +15,11 @@ export const createOrder = async (req, res, next) => {
 
   try {
     const userId = req.user.id;
-    const { couponCode, address } = req.body;
+    const { couponCode, address: rawAddress } = req.body;
+    const address =
+      typeof rawAddress === "string"
+        ? { fullAddress: rawAddress.trim() }
+        : rawAddress || null;
 
     const cart = await Cart.findOne({
       where: { userId },
@@ -93,9 +97,12 @@ export const createOrder = async (req, res, next) => {
     let discountAmount = 0;
     let couponId = null;
 
-    if (couponCode) {
+    const normalizedCouponCode =
+      typeof couponCode === "string" ? couponCode.trim() : "";
+
+    if (normalizedCouponCode) {
       const coupon = await Coupon.findOne({
-        where: { couponCode, status: true },
+        where: { couponCode: normalizedCouponCode, status: true },
       });
 
       if (!coupon) {
@@ -245,6 +252,76 @@ export const getMyOrderById = async (req, res, next) => {
       data: { order },
     });
   } catch (error) {
+    next(error);
+  }
+};
+
+// Cancel order for logged-in user
+export const cancelMyOrder = async (req, res, next) => {
+  const transaction = await sequelize.transaction();
+
+  try {
+    const order = await Order.findOne({
+      where: {
+        id: req.params.id,
+        userId: req.user.id,
+      },
+      transaction,
+    });
+
+    if (!order) {
+      await transaction.rollback();
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+        data: {},
+      });
+    }
+
+    if (["delivered", "cancelled", "shipped"].includes(order.orderStatus)) {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: "This order cannot be cancelled",
+        data: {},
+      });
+    }
+
+    const previousStatus = order.orderStatus;
+    order.orderStatus = "cancelled";
+    await order.save({ transaction });
+
+    if (previousStatus !== "cancelled") {
+      const orderItems = await OrderItem.findAll({
+        where: { orderId: order.id },
+        transaction,
+      });
+
+      for (const item of orderItems) {
+        const variant = await ProductVariant.findByPk(item.productVariantId, { transaction });
+        if (variant) {
+          variant.stock += item.quantity;
+          await variant.save({ transaction });
+        }
+      }
+    }
+
+    await transaction.commit();
+
+    const savedOrder = await Order.findByPk(order.id, {
+      include: [
+        { model: OrderItem, include: [Product, ProductVariant] },
+        { model: Coupon },
+      ],
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Order cancelled successfully",
+      data: { order: savedOrder },
+    });
+  } catch (error) {
+    await transaction.rollback();
     next(error);
   }
 };
