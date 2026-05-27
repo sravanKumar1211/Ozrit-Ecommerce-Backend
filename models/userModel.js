@@ -89,6 +89,26 @@ const User = sequelize.define(
       type: DataTypes.DATE,
       allowNull: true
     },
+
+    emailVerified: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
+
+    otpHash: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+
+    otpExpiresAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+
+    otpLastSentAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
   },
   {
     tableName: "users",

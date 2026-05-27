@@ -8,6 +8,14 @@ import Product from "../models/InventoryModels/productModel.js";
 import ProductVariant from "../models/InventoryModels/productVariantModel.js";
 import Coupon from "../models/couponModel.js";
 import User from "../models/userModel.js";
+import {
+  sendOrderCreatedEmail,
+  sendOrderPackedEmail,
+  sendOrderShippedEmail,
+  sendOrderDeliveredEmail,
+  sendOrderCancelledEmail,
+  sendAdminNewOrderEmail,
+} from "../services/emailService.js";
 
 // Create a new order from cart
 export const createOrder = async (req, res, next) => {
@@ -191,6 +199,18 @@ export const createOrder = async (req, res, next) => {
       ],
     });
 
+    // Send order confirmation email asynchronously
+    try {
+      if (savedOrder && savedOrder.User) {
+        sendOrderCreatedEmail(savedOrder.User, savedOrder).catch(err => console.error("Order created email failed:", err));
+      }
+      if (savedOrder && (savedOrder.paymentMethod === "cod" || savedOrder.paymentStatus === "paid")) {
+        sendAdminNewOrderEmail(savedOrder).catch(err => console.error("Admin new order alert failed:", err));
+      }
+    } catch (mailErr) {
+      console.error("Order created email trigger failed:", mailErr);
+    }
+
     res.status(201).json({
       success: true,
       message: "Order created successfully",
@@ -312,8 +332,18 @@ export const cancelMyOrder = async (req, res, next) => {
       include: [
         { model: OrderItem, include: [Product, ProductVariant] },
         { model: Coupon },
+        { model: User },
       ],
     });
+
+    // Send cancellation email
+    try {
+      if (savedOrder && savedOrder.User) {
+        sendOrderCancelledEmail(savedOrder.User, savedOrder).catch(err => console.error("Order cancelled email failed:", err));
+      }
+    } catch (mailErr) {
+      console.error("Order cancelled email trigger failed:", mailErr);
+    }
 
     res.status(200).json({
       success: true,
@@ -459,6 +489,16 @@ export const updateOrderStatus = async (req, res, next) => {
       });
     }
 
+    // ─── shipping restriction ───
+    if (["shipped", "delivered"].includes(orderStatus) && order.paymentStatus !== "paid") {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: `Cannot transition order to '${orderStatus}' because its payment status is '${order.paymentStatus}'. Please verify payment first.`,
+        data: {},
+      });
+    }
+
     const previousStatus = order.orderStatus;
     order.orderStatus = orderStatus;
     await order.save({ transaction });
@@ -476,10 +516,36 @@ export const updateOrderStatus = async (req, res, next) => {
 
     await transaction.commit();
 
+    // Fetch the updated order with all associations to send emails and return to frontend
+    const updatedOrder = await Order.findByPk(orderId, {
+      include: [
+        { model: OrderItem, include: [Product, ProductVariant] },
+        { model: Coupon },
+        { model: User },
+      ],
+    });
+
+    // Send emails for order updates asynchronously
+    try {
+      if (updatedOrder && updatedOrder.User) {
+        if (orderStatus === "packed") {
+          sendOrderPackedEmail(updatedOrder.User, updatedOrder).catch(err => console.error("Packed email failed:", err));
+        } else if (orderStatus === "shipped") {
+          sendOrderShippedEmail(updatedOrder.User, updatedOrder).catch(err => console.error("Shipped email failed:", err));
+        } else if (orderStatus === "delivered") {
+          sendOrderDeliveredEmail(updatedOrder.User, updatedOrder).catch(err => console.error("Delivered email failed:", err));
+        } else if (orderStatus === "cancelled" && previousStatus !== "cancelled") {
+          sendOrderCancelledEmail(updatedOrder.User, updatedOrder).catch(err => console.error("Cancelled email failed:", err));
+        }
+      }
+    } catch (mailErr) {
+      console.error("Order status notification failed:", mailErr);
+    }
+
     res.status(200).json({
       success: true,
       message: "Order status updated",
-      data: { order },
+      data: { order: updatedOrder },
     });
   } catch (error) {
     await transaction.rollback();

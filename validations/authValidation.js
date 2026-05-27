@@ -11,7 +11,7 @@ export const registerSchema = Joi.object({
     village: Joi.string().required(),
     city: Joi.string().required(),
     pincode: Joi.string().required(),
-  }).optional(),
+  }),
 });
 
 export const loginSchema = Joi.object({

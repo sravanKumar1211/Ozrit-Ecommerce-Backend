@@ -50,6 +50,14 @@ const Order = sequelize.define(
       type: DataTypes.STRING,
       allowNull: true,
     },
+    razorpaySignature: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    paidAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
     orderStatus: {
       type: DataTypes.ENUM("pending", "packed", "shipped", "delivered", "cancelled"),
       defaultValue: "pending",
