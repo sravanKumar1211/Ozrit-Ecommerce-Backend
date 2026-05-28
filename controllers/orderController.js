@@ -204,7 +204,7 @@ export const createOrder = async (req, res, next) => {
       if (savedOrder && savedOrder.User) {
         sendOrderCreatedEmail(savedOrder.User, savedOrder).catch(err => console.error("Order created email failed:", err));
       }
-      if (savedOrder && (savedOrder.paymentMethod === "cod" || savedOrder.paymentStatus === "paid")) {
+      if (savedOrder && (savedOrder.paymentStatus === "paid")) {
         sendAdminNewOrderEmail(savedOrder).catch(err => console.error("Admin new order alert failed:", err));
       }
     } catch (mailErr) {

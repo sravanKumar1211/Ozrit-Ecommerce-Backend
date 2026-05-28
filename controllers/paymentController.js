@@ -218,37 +218,37 @@ export const razorpayWebhook = async (req, res, next) => {
     }
 
     // ─── 4. Handle refund.processed ───
-    if (event.event === "refund.processed") {
-      // Mark payment as failed/refunded and order as cancelled
-      const previousStatus = order.orderStatus;
-      order.orderStatus = "cancelled";
-      await order.save();
+    // if (event.event === "refund.processed") {
+    //   // Mark payment as failed/refunded and order as cancelled
+    //   const previousStatus = order.orderStatus;
+    //   order.orderStatus = "cancelled";
+    //   await order.save();
 
-      // Restore stock when order is cancelled/refunded
-      if (previousStatus !== "cancelled") {
-        try {
-          const orderItems = await OrderItem.findAll({ where: { orderId: order.id } });
-          for (const item of orderItems) {
-            const variant = await ProductVariant.findByPk(item.productVariantId);
-            if (variant) {
-              variant.stock += item.quantity;
-              await variant.save();
-            }
-          }
-        } catch (stockErr) {
-          console.error("Webhook stock restoration failed:", stockErr);
-        }
-      }
+    //   // Restore stock when order is cancelled/refunded
+    //   if (previousStatus !== "cancelled") {
+    //     try {
+    //       const orderItems = await OrderItem.findAll({ where: { orderId: order.id } });
+    //       for (const item of orderItems) {
+    //         const variant = await ProductVariant.findByPk(item.productVariantId);
+    //         if (variant) {
+    //           variant.stock += item.quantity;
+    //           await variant.save();
+    //         }
+    //       }
+    //     } catch (stockErr) {
+    //       console.error("Webhook stock restoration failed:", stockErr);
+    //     }
+    //   }
 
-      const fullOrder = await fetchFullOrder(order.id);
-      try {
-        if (fullOrder && fullOrder.User) {
-          sendOrderRefundedEmail(fullOrder.User, fullOrder).catch(err => console.error("Refund email failed:", err));
-        }
-      } catch (mailErr) {
-        console.error("Webhook refund email trigger failed:", mailErr);
-      }
-    }
+    //   const fullOrder = await fetchFullOrder(order.id);
+    //   try {
+    //     if (fullOrder && fullOrder.User) {
+    //       sendOrderRefundedEmail(fullOrder.User, fullOrder).catch(err => console.error("Refund email failed:", err));
+    //     }
+    //   } catch (mailErr) {
+    //     console.error("Webhook refund email trigger failed:", mailErr);
+    //   }
+    // }
 
     res.status(200).json({
       success: true,

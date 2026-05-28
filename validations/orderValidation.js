@@ -13,7 +13,7 @@ export const createOrderSchema = Joi.object({
         pincode: Joi.string().required(),
       }),
     )
-    .optional(),
+    .required()
 });
 
 export const orderStatusSchema = Joi.object({
