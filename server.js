@@ -3,6 +3,8 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import path from "path";
+import { createServer } from "http";
+import { Server } from "socket.io";
 import sequelize from "./config/db.js";
 import UserRoutes from "./routes/userRoutes.js";
 import CategoryRoutes from "./routes/InventoyRoutes/categoryRoutes.js";
@@ -14,7 +16,9 @@ import CartRoutes from "./routes/cartRoutes.js";
 import CouponRoutes from "./routes/couponRoutes.js";
 import OrderRoutes from "./routes/orderRoutes.js";
 import PaymentRoutes from "./routes/paymentRoutes.js";
+import ChatRoutes from "./routes/chatRoutes.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
+import { initializeChatSocket } from "./socket/chatSocketHandler.js";
 
 dotenv.config();
 const app = express();
@@ -73,6 +77,7 @@ app.use("/api/cart", CartRoutes);
 app.use("/api/coupons", CouponRoutes);
 app.use("/api", OrderRoutes);
 app.use("/api/payment", PaymentRoutes);
+app.use("/api/chat", ChatRoutes);
 
 // Central error handler
 app.use(errorHandler);
@@ -90,13 +95,22 @@ const startServer = async () => {
 
     console.log("Models synchronized");
 
-    const PORT =
-      process.env.PORT || 5000;
+    const PORT = process.env.PORT || 5000;
+    
+    // Create HTTP server for Socket.IO
+    const server = createServer(app);
+    const io = new Server(server, {
+      cors: {
+        origin: allowedOrigins,
+        credentials: true,
+      },
+    });
 
-    app.listen(PORT, () => {
-      console.log(
-        `Server running on port ${PORT}`
-      );
+    // Initialize chat socket events
+    initializeChatSocket(io);
+
+    server.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
     });
   } catch (error) {
     console.log(
