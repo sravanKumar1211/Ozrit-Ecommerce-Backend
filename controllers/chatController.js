@@ -99,6 +99,7 @@ export const getMessages = async (req, res) => {
       messages,
     });
   } catch (error) {
+    console.error("GET_MESSAGES:", error);
     res.status(500).json({
       success: false,
       message: "Error fetching messages",
@@ -155,7 +156,7 @@ export const createMessage = async (req, res) => {
         });
       }
 
-      if (conversation.userId !== senderId && role !== "admin") {
+      if (Number(conversation.userId) !== Number(senderId) && role !== "admin") {
         return res.status(403).json({
           success: false,
           message: "Access denied",

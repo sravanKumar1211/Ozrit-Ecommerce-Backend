@@ -56,11 +56,13 @@ const ChatMessage = sequelize.define(
 );
 
 User.hasMany(ChatMessage, {
-  foreignKey: "senderId"
+  foreignKey: "senderId",
+  as: "messages"
 });
 
 ChatMessage.belongsTo(User, {
-  foreignKey: "senderId"
+  foreignKey: "senderId",
+  as: "sender"
 });
 
 ChatConversation.hasMany(ChatMessage, {

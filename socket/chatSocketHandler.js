@@ -18,6 +18,8 @@ const authenticateSocket = (token) => {
 
 export const initializeChatSocket = (io) => {
   io.use((socket, next) => {
+    console.log("AUTH:", socket.handshake.auth);
+    console.log("HEADER:", socket.handshake.headers.authorization);
     const token = socket.handshake.auth.token;
 
     if (!token) {
@@ -103,8 +105,8 @@ export const initializeChatSocket = (io) => {
 
           console.log(`[Socket] Found conversation ${conversationId}. Owner userId: ${conversation.userId}`);
 
-          // Verify access
-          if (senderRole === "user" && conversation.userId !== senderId) {
+          // Verify access (convert to Number for safe comparison)
+          if (senderRole === "user" && Number(conversation.userId) !== Number(senderId)) {
             console.log(`[Socket] ACCESS DENIED: User ${senderId} tried to access conversation owned by ${conversation.userId}`);
             socket.emit("error", { message: "Access denied" });
             return;
