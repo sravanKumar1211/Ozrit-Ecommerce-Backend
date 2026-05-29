@@ -473,7 +473,7 @@ export const sendAdminNewOrderEmail = async (order) => {
     ${renderOrderItemsTable(order)}
     
     <div class="button-container">
-      <a href="${process.env.FRONTEND_URL || "http://localhost:5173"}/admin/orders/${order.id}" class="button" style="background-color: #dc2626;" target="_blank">Open Admin Dashboard</a>
+      <a href="${process.env.ADMIN_URL || "http://localhost:5174"}/admin/orders/${order.id}" class="button" style="background-color: #dc2626;" target="_blank">Open Admin Dashboard</a>
     </div>
   `;
   const html = getEmailWrapper(subject, "Admin new order received", bodyContent);

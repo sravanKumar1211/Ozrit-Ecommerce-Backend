@@ -24,12 +24,9 @@ dotenv.config();
 const app = express();
 
 // Middleware
-const allowedOrigins = [
-  "http://localhost:5174",
-  "http://localhost:5173", // Default for Vite + React
-  process.env.FRONTEND_URL // Your production React app URL (add this to your .env)
-].filter(Boolean); // Removes undefined values if FRONTEND_URL isn't set yet
+const allowedOrigins = (process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',').map(o => o.trim()) : []).concat(["http://localhost:5174","http://localhost:5173",process.env.FRONTEND_URL]).filter(Boolean);
 
+app.set('trust proxy', 1);
 app.use(
   cors({
     origin: (origin, callback) => {
